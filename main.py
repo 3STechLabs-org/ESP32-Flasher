@@ -124,11 +124,14 @@ class ESP32Flasher:
             self.show_error(str(e))
 
     def update_progress(self, output):
-        if "Writing" in output and "%" in output:
-            percent_complete = int(output.split('%')[0].split()[-1])
-            self.progress['value'] = percent_complete
-        elif "Hash" in output:
-            self.progress['value'] = 100
+        try:
+            if "Writing at" in output and "%" in output:
+                percent_complete = int(output.split('%')[0].split()[-1])
+                self.progress['value'] = percent_complete
+            elif "Hash of data verified" in output:
+                self.progress['value'] = 100
+        except ValueError:
+            print(f"Unable to parse progress output: {output}")
 
     def show_error(self, error_message):
         messagebox.showerror("Error", f"An error occurred: {error_message}")
