@@ -11,7 +11,8 @@ class ESP32Flasher:
     def __init__(self, root):
         self.root = root
         self.root.title("ESP32 Flasher")
-        self.root.geometry("800x500")
+        self.root.geometry("625x350")
+        self.root.resizable(False, False)  # Disable window resizing
 
         self.firmware_file = tb.StringVar()
         self.port = tb.StringVar()
@@ -23,29 +24,30 @@ class ESP32Flasher:
 
     def create_widgets(self):
         # Firmware selection
-        tb.Label(self.root, text="Select Firmware (.bin):", bootstyle="primary").pack(pady=10)
-        tb.Entry(self.root, textvariable=self.firmware_file, width=70).pack(pady=5)
-        tb.Button(self.root, text="Browse", command=self.browse_file, bootstyle="outline-primary").pack(pady=5)
+        tb.Label(self.root, text="Select Firmware (.bin):", bootstyle="primary").grid(row=0, column=0, padx=10, pady=10, sticky=W)
+        firmware_entry = tb.Entry(self.root, textvariable=self.firmware_file, width=60)
+        firmware_entry.grid(row=0, column=1, padx=10, pady=10)
+        tb.Button(self.root, text="Browse", command=self.browse_file, bootstyle="outline-primary").grid(row=0, column=2, padx=10, pady=10)
 
         # Port selection
-        tb.Label(self.root, text="Select Port:", bootstyle="primary").pack(pady=10)
-        self.port_menu = tb.Combobox(self.root, textvariable=self.port, bootstyle="primary")
-        self.port_menu.pack(pady=5)
+        tb.Label(self.root, text="Select Port:", bootstyle="primary").grid(row=1, column=0, padx=10, pady=10, sticky=W)
+        self.port_menu = tb.Combobox(self.root, textvariable=self.port, bootstyle="primary", width=58)
+        self.port_menu.grid(row=1, column=1, padx=10, pady=10)
 
         # Flash button
-        tb.Button(self.root, text="Flash ESP32", command=self.flash_firmware, bootstyle="success").pack(pady=20)
+        tb.Button(self.root, text="Flash ESP32", command=self.flash_firmware, bootstyle="success").grid(row=2, column=0, columnspan=3, padx=10, pady=20)
 
         # Status message
         self.status = tb.Label(self.root, text="", bootstyle="danger")
-        self.status.pack(pady=10)
+        self.status.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
 
         # Progress bar and percentage text
         self.progress = tb.Progressbar(self.root, orient=HORIZONTAL, length=600, mode='determinate', variable=self.progress_var, bootstyle="info")
-        self.progress.pack(pady=10)
-        self.progress.pack_forget()
+        self.progress.grid(row=4, column=0, columnspan=3, padx=10, pady=10)
+        self.progress.grid_remove()
         self.progress_label = tb.Label(self.root, textvariable=self.progress_text, bootstyle="info")
-        self.progress_label.pack(pady=10)
-        self.progress_label.pack_forget()
+        self.progress_label.grid(row=5, column=0, columnspan=3, padx=10, pady=10)
+        self.progress_label.grid_remove()
 
     def browse_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("Binary Files", "*.bin")])
@@ -73,8 +75,8 @@ class ESP32Flasher:
             return
 
         self.status.config(text="Flashing firmware...", bootstyle="info")
-        self.progress.pack(pady=10)
-        self.progress_label.pack(pady=10)
+        self.progress.grid()
+        self.progress_label.grid()
         self.root.update_idletasks()
 
         try:
@@ -94,8 +96,8 @@ class ESP32Flasher:
                 self.root.update_idletasks()
 
             result = process.poll()
-            self.progress.pack_forget()
-            self.progress_label.pack_forget()
+            self.progress.grid_remove()
+            self.progress_label.grid_remove()
 
             if result == 0:
                 self.status.config(text="Firmware flashed successfully!", bootstyle="success")
