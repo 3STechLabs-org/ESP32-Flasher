@@ -22,10 +22,12 @@ class ESP32Flasher:
     def __init__(self, root):
         self.root = root
         self.root.title("ESP32 Flasher")
-        self.root.geometry("500x300")
+        self.root.geometry("800x500")
 
         self.firmware_file = StringVar()
         self.port = StringVar()
+        self.progress_var = IntVar()  # Variable to hold progress bar value
+        self.progress_text = StringVar()  # Variable to hold progress percentage text
 
         self.create_widgets()
         self.detect_ports()
@@ -48,10 +50,13 @@ class ESP32Flasher:
         self.status = Label(self.root, text="", fg="red")
         self.status.pack(pady=10)
 
-        # Progress bar
-        self.progress = ttk.Progressbar(self.root, orient=HORIZONTAL, length=400, mode='determinate')
+        # Progress bar and percentage text
+        self.progress = ttk.Progressbar(self.root, orient=HORIZONTAL, length=400, mode='determinate', variable=self.progress_var)
         self.progress.pack(pady=10)
         self.progress.pack_forget()  # Hide progress bar initially
+        self.progress_label = Label(self.root, textvariable=self.progress_text)
+        self.progress_label.pack(pady=10)
+        self.progress_label.pack_forget()  # Hide progress label initially
 
     def browse_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("Binary Files", "*.bin")])
@@ -83,6 +88,7 @@ class ESP32Flasher:
 
         self.status.config(text="Flashing firmware...", fg="blue")
         self.progress.pack(pady=10)  # Show progress bar
+        self.progress_label.pack(pady=10)  # Show progress label
         self.root.update_idletasks()
 
         try:
@@ -106,6 +112,7 @@ class ESP32Flasher:
 
             result = process.poll()
             self.progress.pack_forget()  # Hide progress bar after completion
+            self.progress_label.pack_forget()  # Hide progress label after completion
 
             if result == 0:
                 self.status.config(text="Firmware flashed successfully!", fg="green")
@@ -131,9 +138,11 @@ class ESP32Flasher:
                 percent_end = output.find('%')
                 if percent_start > 0 and percent_end > percent_start:
                     percent_complete = int(output[percent_start:percent_end].strip())
-                    self.progress['value'] = percent_complete
+                    self.progress_var.set(percent_complete)
+                    self.progress_text.set(f"{percent_complete}%")
             elif "Hash of data verified" in output:
-                self.progress['value'] = 100
+                self.progress_var.set(100)
+                self.progress_text.set("100%")
         except ValueError:
             print(f"Unable to parse progress output: {output}")
 
