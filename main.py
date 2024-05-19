@@ -74,7 +74,7 @@ class ESP32Flasher:
             messagebox.showerror("Error", "Please select a port.")
             return
 
-        self.status.config(text="Flashing firmware...", bootstyle="info")
+        self.status.config(text="")
         self.progress.grid()
         self.progress_label.grid()
         self.root.update_idletasks()
@@ -106,12 +106,18 @@ class ESP32Flasher:
                 self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
                 self.show_error(stderr)
         except serial.SerialException as e:
+            self.progress.grid_remove()
+            self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
             self.show_error(str(e))
         except PermissionError as e:
+            self.progress.grid_remove()
+            self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Port permission denied.", bootstyle="danger")
             self.show_error(f"Permission error: {str(e)}.\nHint: Check if the port is used by another task.")
         except Exception as e:
+            self.progress.grid_remove()
+            self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
             self.show_error(str(e))
 
