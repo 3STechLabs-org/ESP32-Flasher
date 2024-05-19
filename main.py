@@ -126,8 +126,12 @@ class ESP32Flasher:
     def update_progress(self, output):
         try:
             if "Writing at" in output and "%" in output:
-                percent_complete = int(output.split('%')[0].split()[-1])
-                self.progress['value'] = percent_complete
+                # Extract percentage
+                percent_start = output.find('(') + 1
+                percent_end = output.find('%')
+                if percent_start > 0 and percent_end > percent_start:
+                    percent_complete = int(output[percent_start:percent_end].strip())
+                    self.progress['value'] = percent_complete
             elif "Hash of data verified" in output:
                 self.progress['value'] = 100
         except ValueError:
