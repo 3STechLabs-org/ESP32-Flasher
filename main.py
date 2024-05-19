@@ -1,22 +1,11 @@
 import os
 import sys
-import ctypes
 import subprocess
 import serial
 import serial.tools.list_ports
-from tkinter import *
-from tkinter import filedialog, messagebox, ttk
-
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
-def run_as_admin():
-    script = os.path.abspath(__file__)
-    params = ' '.join([script] + sys.argv[1:])
-    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+from tkinter import filedialog, messagebox
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
 
 class ESP32Flasher:
     def __init__(self, root):
@@ -24,39 +13,39 @@ class ESP32Flasher:
         self.root.title("ESP32 Flasher")
         self.root.geometry("800x500")
 
-        self.firmware_file = StringVar()
-        self.port = StringVar()
-        self.progress_var = IntVar()  # Variable to hold progress bar value
-        self.progress_text = StringVar()  # Variable to hold progress percentage text
+        self.firmware_file = tb.StringVar()
+        self.port = tb.StringVar()
+        self.progress_var = tb.IntVar()
+        self.progress_text = tb.StringVar()
 
         self.create_widgets()
         self.detect_ports()
 
     def create_widgets(self):
         # Firmware selection
-        Label(self.root, text="Select Firmware (.bin):").pack(pady=10)
-        Entry(self.root, textvariable=self.firmware_file, width=50).pack(pady=5)
-        Button(self.root, text="Browse", command=self.browse_file).pack(pady=5)
+        tb.Label(self.root, text="Select Firmware (.bin):", bootstyle="primary").pack(pady=10)
+        tb.Entry(self.root, textvariable=self.firmware_file, width=70).pack(pady=5)
+        tb.Button(self.root, text="Browse", command=self.browse_file, bootstyle="outline-primary").pack(pady=5)
 
         # Port selection
-        Label(self.root, text="Select Port:").pack(pady=10)
-        self.port_menu = OptionMenu(self.root, self.port, "")
+        tb.Label(self.root, text="Select Port:", bootstyle="primary").pack(pady=10)
+        self.port_menu = tb.Combobox(self.root, textvariable=self.port, bootstyle="primary")
         self.port_menu.pack(pady=5)
 
         # Flash button
-        Button(self.root, text="Flash ESP32", command=self.flash_firmware).pack(pady=20)
+        tb.Button(self.root, text="Flash ESP32", command=self.flash_firmware, bootstyle="success").pack(pady=20)
 
         # Status message
-        self.status = Label(self.root, text="", fg="red")
+        self.status = tb.Label(self.root, text="", bootstyle="danger")
         self.status.pack(pady=10)
 
         # Progress bar and percentage text
-        self.progress = ttk.Progressbar(self.root, orient=HORIZONTAL, length=400, mode='determinate', variable=self.progress_var)
+        self.progress = tb.Progressbar(self.root, orient=HORIZONTAL, length=600, mode='determinate', variable=self.progress_var, bootstyle="info")
         self.progress.pack(pady=10)
-        self.progress.pack_forget()  # Hide progress bar initially
-        self.progress_label = Label(self.root, textvariable=self.progress_text)
+        self.progress.pack_forget()
+        self.progress_label = tb.Label(self.root, textvariable=self.progress_text, bootstyle="info")
         self.progress_label.pack(pady=10)
-        self.progress_label.pack_forget()  # Hide progress label initially
+        self.progress_label.pack_forget()
 
     def browse_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("Binary Files", "*.bin")])
@@ -68,13 +57,10 @@ class ESP32Flasher:
         port_list = [port.device for port in ports]
         if port_list:
             self.port.set(port_list[0])
-            menu = self.port_menu["menu"]
-            menu.delete(0, "end")
-            for port in port_list:
-                menu.add_command(label=port, command=lambda p=port: self.port.set(p))
-            self.status.config(text="ESP32 connected", fg="green")
+            self.port_menu['values'] = port_list
+            self.status.config(text="ESP32 connected", bootstyle="success")
         else:
-            self.status.config(text="No ESP32 detected. Please select port manually.", fg="red")
+            self.status.config(text="No ESP32 detected. Please select port manually.", bootstyle="danger")
 
     def flash_firmware(self):
         firmware = self.firmware_file.get()
@@ -86,21 +72,18 @@ class ESP32Flasher:
             messagebox.showerror("Error", "Please select a port.")
             return
 
-        self.status.config(text="Flashing firmware...", fg="blue")
-        self.progress.pack(pady=10)  # Show progress bar
-        self.progress_label.pack(pady=10)  # Show progress label
+        self.status.config(text="Flashing firmware...", bootstyle="info")
+        self.progress.pack(pady=10)
+        self.progress_label.pack(pady=10)
         self.root.update_idletasks()
 
         try:
-            # Check if the port is available
             with serial.Serial(port) as ser:
                 ser.close()
 
-            # Call esptool.py to flash the firmware
             command = [sys.executable, "-m", "esptool", "--chip", "esp32", "--port", port, "write_flash", "-z", "0x1000", firmware]
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-            # Update progress bar
             while True:
                 output = process.stdout.readline()
                 if output == '' and process.poll() is not None:
@@ -111,29 +94,28 @@ class ESP32Flasher:
                 self.root.update_idletasks()
 
             result = process.poll()
-            self.progress.pack_forget()  # Hide progress bar after completion
-            self.progress_label.pack_forget()  # Hide progress label after completion
+            self.progress.pack_forget()
+            self.progress_label.pack_forget()
 
             if result == 0:
-                self.status.config(text="Firmware flashed successfully!", fg="green")
+                self.status.config(text="Firmware flashed successfully!", bootstyle="success")
             else:
                 stderr = process.stderr.read()
-                self.status.config(text="Failed to flash firmware. Please try again.", fg="red")
+                self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
                 self.show_error(stderr)
         except serial.SerialException as e:
-            self.status.config(text="Failed to flash firmware. Please try again.", fg="red")
+            self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
             self.show_error(str(e))
         except PermissionError as e:
-            self.status.config(text="Failed to flash firmware. Port permission denied.", fg="red")
+            self.status.config(text="Failed to flash firmware. Port permission denied.", bootstyle="danger")
             self.show_error(f"Permission error: {str(e)}.\nHint: Check if the port is used by another task.")
         except Exception as e:
-            self.status.config(text="Failed to flash firmware. Please try again.", fg="red")
+            self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
             self.show_error(str(e))
 
     def update_progress(self, output):
         try:
             if "Writing at" in output and "%" in output:
-                # Extract percentage
                 percent_start = output.find('(') + 1
                 percent_end = output.find('%')
                 if percent_start > 0 and percent_end > percent_start:
@@ -153,25 +135,21 @@ def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 if __name__ == "__main__":
-    if not is_admin():
-        run_as_admin()
-        sys.exit()
-
     try:
         import serial.tools.list_ports
     except ImportError:
         install('pyserial')
 
     try:
-        import tkinter
+        import ttkbootstrap as tb
     except ImportError:
-        install('tk')
+        install('ttkbootstrap')
 
     try:
         import esptool
     except ImportError:
         install('esptool')
 
-    root = Tk()
+    root = tb.Window(themename="cosmo")
     app = ESP32Flasher(root)
     root.mainloop()
