@@ -1,8 +1,6 @@
-import os
-import sys
 import subprocess
+import sys
 import serial
-import serial.tools.list_ports
 from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
@@ -83,8 +81,8 @@ class ESP32Flasher:
             with serial.Serial(port) as ser:
                 ser.close()
 
-            command = [sys.executable, "-m", "esptool", "--chip", "esp32", "--port", port, "write_flash", "-z", "0x1000", firmware]
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            command = ["esptool", "--chip", "esp32", "--port", port, "write_flash", "-z", "0x1000", firmware]
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
             while True:
                 output = process.stdout.readline()
