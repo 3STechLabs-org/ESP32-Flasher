@@ -4,13 +4,13 @@ import serial
 from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
-
+import esptool
 class ESP32Flasher:
     def __init__(self, root):
         self.root = root
         self.root.title("ESP32 Flasher")
         self.root.geometry("625x350")
-        self.root.resizable(False, False)  # Disable window resizing
+        self.root.resizable(True, True)  # Disable window resizing
 
         self.firmware_file = tb.StringVar()
         self.port = tb.StringVar()
@@ -51,6 +51,7 @@ class ESP32Flasher:
         file_path = filedialog.askopenfilename(filetypes=[("Binary Files", "*.bin")])
         if file_path:
             self.firmware_file.set(file_path)
+        print("File selected:", file_path)  # Detailed print
 
     def detect_ports(self):
         ports = serial.tools.list_ports.comports()
@@ -61,6 +62,7 @@ class ESP32Flasher:
             self.status.config(text="ESP32 connected", bootstyle="success")
         else:
             self.status.config(text="No ESP32 detected. Please select port manually.", bootstyle="danger")
+        print("Port list:", port_list)  # Detailed print
 
     def flash_firmware(self):
         firmware = self.firmware_file.get()
@@ -80,44 +82,38 @@ class ESP32Flasher:
         try:
             with serial.Serial(port) as ser:
                 ser.close()
+            print("Serial port opened successfully:", port)
 
-            command = ["esptool", "--chip", "esp32", "--port", port, "write_flash", "-z", "0x1000", firmware]
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            # Create the command arguments for esptool
+            args = [
+                '--chip', 'esp32',
+                '--port', port,
+                'write_flash', '-z', '0x1000', firmware
+            ]
 
-            while True:
-                output = process.stdout.readline()
-                if output == '' and process.poll() is not None:
-                    break
-                if output:
-                    print(output.strip())
-                    self.update_progress(output.strip())
-                self.root.update_idletasks()
-
-            result = process.poll()
+            # Create an ESPtool context and run it
+            esptool.main(args)
             self.progress.grid_remove()
             self.progress_label.grid_remove()
-
-            if result == 0:
-                self.status.config(text="Firmware flashed successfully!", bootstyle="success")
-            else:
-                stderr = process.stderr.read()
-                self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
-                self.show_error(stderr)
+            self.status.config(text="Firmware flashed successfully!", bootstyle="success")
         except serial.SerialException as e:
             self.progress.grid_remove()
             self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
             self.show_error(str(e))
+            print("Serial error:", e)
         except PermissionError as e:
             self.progress.grid_remove()
             self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Port permission denied.", bootstyle="danger")
             self.show_error(f"Permission error: {str(e)}.\nHint: Check if the port is used by another task.")
+            print("Permission error:", e)
         except Exception as e:
             self.progress.grid_remove()
             self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
             self.show_error(str(e))
+            print("Unknown error:", e)
 
     def update_progress(self, output):
         try:
@@ -136,6 +132,7 @@ class ESP32Flasher:
 
     def show_error(self, error_message):
         messagebox.showerror("Error", f"An error occurred: {error_message}")
+        print("Error:", error_message)  # Detailed print
 
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
