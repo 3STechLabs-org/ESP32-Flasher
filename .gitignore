@@ -3026,3 +3026,4 @@ build/main/your_executable.exe
 build/main/your_executable.pkg
 build/main/your_script.exe
 build/main/your_script.pkg
+dist/main.zip
