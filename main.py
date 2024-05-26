@@ -1,9 +1,11 @@
 import subprocess
 import sys
 import serial
+import esptool
 from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
+import io
 
 class ESP32Flasher:
     def __init__(self, root):
@@ -80,51 +82,67 @@ class ESP32Flasher:
         self.root.update_idletasks()
 
         try:
-            ser = serial.Serial(port)
-            ser.close()
-            print("Serial port opened successfully:", port)  # Detailed print
+            with serial.Serial(port) as ser:
+                ser.close()
+            print("Serial port opened successfully:", port)
 
-            command = ["esptool", "--chip", "esp32", "--port", port, "write_flash", "-z", "0x1000", firmware]
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
-            print("Flashing firmware command:", command)  # Detailed print
+            # Redirect stdout and stderr to capture esptool output
+            stdout_backup = sys.stdout
+            stderr_backup = sys.stderr
+            sys.stdout = io.StringIO()
+            sys.stderr = io.StringIO()
 
-            while True:
-                output = process.stdout.readline()
-                if output == '' and process.poll() is not None:
-                    break
-                if output:
-                    print("Output from subprocess:", output.strip())  # Detailed print
-                    self.update_progress(output.strip())
-                self.root.update_idletasks()
+            # Create the command arguments for esptool
+            args = [
+                '--chip', 'esp32',
+                '--port', port,
+                'write_flash', '-z', '0x1000', firmware
+            ]
 
-            result = process.poll()
-            self.progress.grid_remove()
-            self.progress_label.grid_remove()
+            try:
+                esptool.main(args)
+                output = sys.stdout.getvalue() + sys.stderr.getvalue()
+                print("Output:", output)  # Detailed print
+                self.process_output(output)
 
-            if result == 0:
+                self.progress.grid_remove()
+                self.progress_label.grid_remove()
                 self.status.config(text="Firmware flashed successfully!", bootstyle="success")
-            else:
-                stderr = process.stderr.read()
+            except Exception as e:
+                self.progress.grid_remove()
+                self.progress_label.grid_remove()
                 self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
-                self.show_error(stderr)
+                self.show_error(str(e))
+                print("Esptool error:", e)
+            finally:
+                # Restore stdout and stderr
+                sys.stdout = stdout_backup
+                sys.stderr = stderr_backup
         except serial.SerialException as e:
             self.progress.grid_remove()
             self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
             self.show_error(str(e))
-            print("Serial error:", e)  # Detailed print
+            print("Serial error:", e)
         except PermissionError as e:
             self.progress.grid_remove()
             self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Port permission denied.", bootstyle="danger")
-            self.show_error(f"Permission error: {str(e)}.\nHint: Check if the port is used by another task or run the program as an administrator.")
-            print("Permission error:", e)  # Detailed print
+            self.show_error(f"Permission error: {str(e)}.\nHint: Check if the port is used by another task.")
+            print("Permission error:", e)
         except Exception as e:
             self.progress.grid_remove()
             self.progress_label.grid_remove()
             self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
             self.show_error(str(e))
-            print("Unknown error:", e)  # Detailed print
+            print("Unknown error:", e)
+
+    def process_output(self, output):
+        # Process the captured output for progress updates
+        lines = output.splitlines()
+        for line in lines:
+            self.update_progress(line)
+            self.root.update_idletasks()
 
     def update_progress(self, output):
         try:
