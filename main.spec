@@ -36,7 +36,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # Set to False to suppress console window
+    console=False,
 )
 
 coll = COLLECT(
