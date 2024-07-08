@@ -1,16 +1,41 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+import sys
+
 block_cipher = None
+
+# Detect the current platform
+is_windows = sys.platform.startswith('win')
+is_macos = sys.platform == 'darwin'
+is_linux = sys.platform.startswith('linux')
+
+# Platform-specific paths and data files
+if is_windows:
+    datas = [
+        ('esp_env\\Lib\\site-packages\\esptool\\targets\\stub_flasher', 'esptool/targets/stub_flasher'),
+        ('drivers\\CP210x_VCP_Windows\\CP210xVCPInstaller_x64.exe', '.'),
+    ]
+    pathex = ['esp_env\\Lib\\site-packages']
+elif is_macos:
+    datas = [
+        ('esp_env/Lib/site-packages/esptool/targets/stub_flasher', 'esptool/targets/stub_flasher'),
+    ]
+    pathex = ['esp_env/Lib/site-packages']
+elif is_linux:
+    datas = [
+        ('esp_env/Lib/site-packages/esptool/targets/stub_flasher', 'esptool/targets/stub_flasher'),
+    ]
+    pathex = ['esp_env/Lib/site-packages']
+else:
+    datas = []
+    pathex = []
 
 a = Analysis(
     ['main.py'],
-    pathex=['D:\\3STechLabs\\werqwise\\esp_flasher\\esp_env\\Lib\\site-packages'],
+    pathex=pathex,
     binaries=[],
-    datas=[
-        ('D:\\3STechLabs\\werqwise\\esp_flasher\\esp_env\\Lib\\site-packages\\esptool\\targets\\stub_flasher', 'esptool/targets/stub_flasher'),
-        ('D:\\3STechLabs\\werqwise\\esp_flasher\\CP210x_VCP_Windows\\CP210xVCPInstaller_x64.exe', '.'),
-        (r'C:\Python312\python312.dll', '.')
-    ],
+    datas=datas,
     hiddenimports=[
         'serial',
         'serial.tools.list_ports',

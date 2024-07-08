@@ -1,4 +1,5 @@
 build
+.DS_Store
 esp_env/
 build/main/Analysis-00.toc
 build/main/base_library.zip
