@@ -5,7 +5,8 @@ from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 import threading
-
+import io
+import time
 class ESP32Flasher:
     def __init__(self, root):
         self.root = root
@@ -20,7 +21,8 @@ class ESP32Flasher:
 
         self.create_widgets()
         self.detect_ports()
-
+        self.total_size = 0
+        self.current_progress = 0
     def create_widgets(self):
         # Firmware selection
         tb.Label(self.root, text="Select Firmware (.bin):", bootstyle="primary").grid(row=0, column=0, padx=10, pady=10, sticky=W)
@@ -80,85 +82,116 @@ class ESP32Flasher:
         self.progress_label.grid()
         self.root.update_idletasks()
 
-        def flash():
-            try:
-                with serial.Serial(port) as ser:
-                    ser.close()
-                print("Serial port opened successfully:", port)
+        flash_thread = threading.Thread(target=self.flash, args=(firmware, port))
+        flash_thread.start()
 
-                process = subprocess.Popen(
-                    [sys.executable, '-m', 'esptool', '--chip', 'esp32', '--port', port, 'write_flash', '-z', '0x1000', firmware],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    universal_newlines=True,
-                    bufsize=1
-                )
+    def flash(self, firmware, port):
+        try:
+            with serial.Serial(port) as ser:
+                ser.close()
+            print("Serial port opened successfully:", port)
 
-                for line in iter(process.stdout.readline, ''):
-                    print(line, end='')  # Print to the console for debugging
+            # Reset progress
+            self.total_size = 0
+            self.current_progress = 0
+            self.progress_var.set(0)
+            self.progress_text.set("0%")
+            
+            # Redirect stdout to capture esptool output
+            old_stdout = sys.stdout
+            sys.stdout = output_buffer = io.StringIO()
+
+            cmd = [
+                '--chip', 'esp32',
+                '--port', port,
+                'write_flash',
+                '-z', '0x1000',
+                firmware
+            ]
+            
+            # Run esptool in a separate thread with a timeout
+            esptool_thread = threading.Thread(target=esptool.main, args=(cmd,))
+            esptool_thread.start()
+
+            # Wait for esptool to finish or timeout
+            timeout = 300  # 5 minutes timeout
+            start_time = time.time()
+            while esptool_thread.is_alive():
+                if time.time() - start_time > timeout:
+                    raise TimeoutError("Flashing process timed out")
+                time.sleep(0.1)
+                
+                # Process any available output
+                output = output_buffer.getvalue()
+                output_buffer.truncate(0)
+                output_buffer.seek(0)
+                
+                for line in output.splitlines():
+                    print(line)  # Print to the console for debugging
                     self.process_output(line)
                     self.root.update_idletasks()
 
-                process.stdout.close()
-                process.wait()
+            # Restore stdout
+            sys.stdout = old_stdout
 
-                if process.returncode == 0:
-                    self.progress.grid_remove()
-                    self.progress_label.grid_remove()
-                    self.status.config(text="Firmware flashed successfully!", bootstyle="success")
-                else:
-                    self.progress.grid_remove()
-                    self.progress_label.grid_remove()
-                    self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
-                    self.show_error("Failed to flash firmware. Please check the console output for more details.")
+            # Process any remaining output
+            remaining_output = output_buffer.getvalue()
+            for line in remaining_output.splitlines():
+                print(line)
+                self.process_output(line)
+                self.root.update_idletasks()
 
-            except serial.SerialException as e:
-                self.progress.grid_remove()
-                self.progress_label.grid_remove()
-                self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
-                self.show_error(str(e))
-                print("Serial error:", e)
-            except PermissionError as e:
-                self.progress.grid_remove()
-                self.progress_label.grid_remove()
-                self.status.config(text="Failed to flash firmware. Port permission denied.", bootstyle="danger")
-                self.show_error(f"Permission error: {str(e)}.\nHint: Check if the port is used by another task.")
-                print("Permission error:", e)
-            except Exception as e:
-                self.progress.grid_remove()
-                self.progress_label.grid_remove()
-                self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
-                self.show_error(str(e))
-                print("Unknown error:", e)
+            self.progress_var.set(100)
+            self.progress_text.set("100%")
+            self.progress.grid_remove()
+            self.progress_label.grid_remove()
+            self.status.config(text="Firmware flashed successfully!", bootstyle="success")
 
-        flash_thread = threading.Thread(target=flash)
-        flash_thread.start()
-
+        except TimeoutError as e:
+            self.handle_error("Timeout error", str(e))
+        except serial.SerialException as e:
+            self.handle_error("Serial error", str(e))
+        except PermissionError as e:
+            self.handle_error("Permission error", f"{str(e)}.\nHint: Check if the port is used by another task.")
+        except Exception as e:
+            self.handle_error("Unknown error", str(e))
+    def handle_error(self, error_type, error_message):
+        self.progress.grid_remove()
+        self.progress_label.grid_remove()
+        self.status.config(text=f"Failed to flash firmware. {error_type}.", bootstyle="danger")
+        self.show_error(error_message)
+        print(f"{error_type}: {error_message}")
     def process_output(self, output):
-        print("Processing output...")  # Debugging statement
-        print(output)  # Debugging statement
-        lines = output.splitlines()
-        for line in lines:
-            print(f"Processing line: {line}")  # Debugging statement
-            self.update_progress(line)
-            self.root.update_idletasks()
+        # print("Processing output:", output)  # Debugging statement
+        self.update_progress(output)
+        self.root.update_idletasks()
 
     def update_progress(self, output):
         try:
-            if "Writing at" in output and "%" in output:
-                percent_start = output.find('(') + 1
-                percent_end = output.find('%')
-                if percent_start > 0 and percent_end > percent_start:
-                    percent_complete = int(output[percent_start:percent_end].strip())
-                    self.progress_var.set(percent_complete)
-                    self.progress_text.set(f"{percent_complete}%")
-                    print(f"Progress: {percent_complete}%")  # Detailed print
+            if "Compressed" in output and "bytes to" in output:
+                size_start = output.find('Compressed') + 11
+                size_end = output.find('bytes')
+                if size_start > 0 and size_end > size_start:
+                    self.total_size = int(output[size_start:size_end].strip().replace(',', ''))
+                    print(f"Total size: {self.total_size} bytes")
+            elif "Writing at" in output:
+                addr_start = output.find('0x')
+                addr_end = output.find('...', addr_start)
+                if addr_start > 0 and addr_end > addr_start:
+                    current_addr = int(output[addr_start:addr_end], 16)
+                    percent_complete = min(100, int((current_addr / self.total_size) * 100))
+                    if percent_complete > self.current_progress:
+                        self.current_progress = percent_complete
+                        self.progress_var.set(self.current_progress)
+                        self.progress_text.set(f"{self.current_progress}%")
+                        print(f"Progress: {self.current_progress}%")  # Detailed print
             elif "Hash of data verified" in output:
                 self.progress_var.set(100)
                 self.progress_text.set("100%")
                 print("Progress: 100%")  # Detailed print
-        except ValueError:
+        except ValueError as e:
             print(f"Unable to parse progress output: {output}")
+            print(f"Error: {str(e)}")
 
     def show_error(self, error_message):
         messagebox.showerror("Error", f"An error occurred: {error_message}")
