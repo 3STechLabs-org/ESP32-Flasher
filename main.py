@@ -6,6 +6,7 @@ from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 import io
+import threading
 
 class ESP32Flasher:
     def __init__(self, root):
@@ -81,64 +82,67 @@ class ESP32Flasher:
         self.progress_label.grid()
         self.root.update_idletasks()
 
-        try:
-            with serial.Serial(port) as ser:
-                ser.close()
-            print("Serial port opened successfully:", port)
-
-            # Redirect stdout and stderr to capture esptool output
-            stdout_backup = sys.stdout
-            stderr_backup = sys.stderr
-            sys.stdout = io.StringIO()
-            sys.stderr = io.StringIO()
-
-            # Create the command arguments for esptool
-            args = [
-                '--chip', 'esp32',
-                '--port', port,
-                'write_flash', '-z', '0x1000', firmware
-            ]
-
+        def flash():
             try:
-                esptool.main(args)
-                output = sys.stdout.getvalue() + sys.stderr.getvalue()
-                print("Output:", output)  # Detailed print
-                self.process_output(output)
+                with serial.Serial(port) as ser:
+                    ser.close()
+                print("Serial port opened successfully:", port)
 
+                # Redirect stdout and stderr to capture esptool output
+                stdout_backup = sys.stdout
+                stderr_backup = sys.stderr
+                sys.stdout = io.StringIO()
+                sys.stderr = io.StringIO()
+
+                # Create the command arguments for esptool
+                args = [
+                    '--chip', 'esp32',
+                    '--port', port,
+                    'write_flash', '-z', '0x1000', firmware
+                ]
+
+                try:
+                    esptool.main(args)
+                    output = sys.stdout.getvalue() + sys.stderr.getvalue()
+                    print("Output:", output)  # Detailed print
+                    self.process_output(output)
+
+                    self.progress.grid_remove()
+                    self.progress_label.grid_remove()
+                    self.status.config(text="Firmware flashed successfully!", bootstyle="success")
+                except Exception as e:
+                    self.progress.grid_remove()
+                    self.progress_label.grid_remove()
+                    self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
+                    self.show_error(str(e))
+                    print("Esptool error:", e)
+                finally:
+                    # Restore stdout and stderr
+                    sys.stdout = stdout_backup
+                    sys.stderr = stderr_backup
+            except serial.SerialException as e:
                 self.progress.grid_remove()
                 self.progress_label.grid_remove()
-                self.status.config(text="Firmware flashed successfully!", bootstyle="success")
+                self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
+                self.show_error(str(e))
+                print("Serial error:", e)
+            except PermissionError as e:
+                self.progress.grid_remove()
+                self.progress_label.grid_remove()
+                self.status.config(text="Failed to flash firmware. Port permission denied.", bootstyle="danger")
+                self.show_error(f"Permission error: {str(e)}.\nHint: Check if the port is used by another task.")
+                print("Permission error:", e)
             except Exception as e:
                 self.progress.grid_remove()
                 self.progress_label.grid_remove()
                 self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
                 self.show_error(str(e))
-                print("Esptool error:", e)
-            finally:
-                # Restore stdout and stderr
-                sys.stdout = stdout_backup
-                sys.stderr = stderr_backup
-        except serial.SerialException as e:
-            self.progress.grid_remove()
-            self.progress_label.grid_remove()
-            self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
-            self.show_error(str(e))
-            print("Serial error:", e)
-        except PermissionError as e:
-            self.progress.grid_remove()
-            self.progress_label.grid_remove()
-            self.status.config(text="Failed to flash firmware. Port permission denied.", bootstyle="danger")
-            self.show_error(f"Permission error: {str(e)}.\nHint: Check if the port is used by another task.")
-            print("Permission error:", e)
-        except Exception as e:
-            self.progress.grid_remove()
-            self.progress_label.grid_remove()
-            self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
-            self.show_error(str(e))
-            print("Unknown error:", e)
+                print("Unknown error:", e)
+
+        flash_thread = threading.Thread(target=flash)
+        flash_thread.start()
 
     def process_output(self, output):
-        # Process the captured output for progress updates
         lines = output.splitlines()
         for line in lines:
             self.update_progress(line)
@@ -153,9 +157,11 @@ class ESP32Flasher:
                     percent_complete = int(output[percent_start:percent_end].strip())
                     self.progress_var.set(percent_complete)
                     self.progress_text.set(f"{percent_complete}%")
+                    print(f"Progress: {percent_complete}%")  # Detailed print
             elif "Hash of data verified" in output:
                 self.progress_var.set(100)
                 self.progress_text.set("100%")
+                print("Progress: 100%")  # Detailed print
         except ValueError:
             print(f"Unable to parse progress output: {output}")
 
