@@ -1,11 +1,9 @@
 import subprocess
 import sys
 import serial
-import esptool
 from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
-import io
 import threading
 
 class ESP32Flasher:
@@ -88,38 +86,32 @@ class ESP32Flasher:
                     ser.close()
                 print("Serial port opened successfully:", port)
 
-                # Redirect stdout and stderr to capture esptool output
-                stdout_backup = sys.stdout
-                stderr_backup = sys.stderr
-                sys.stdout = io.StringIO()
-                sys.stderr = io.StringIO()
+                process = subprocess.Popen(
+                    [sys.executable, '-m', 'esptool', '--chip', 'esp32', '--port', port, 'write_flash', '-z', '0x1000', firmware],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                    bufsize=1
+                )
 
-                # Create the command arguments for esptool
-                args = [
-                    '--chip', 'esp32',
-                    '--port', port,
-                    'write_flash', '-z', '0x1000', firmware
-                ]
+                for line in iter(process.stdout.readline, ''):
+                    print(line, end='')  # Print to the console for debugging
+                    self.process_output(line)
+                    self.root.update_idletasks()
 
-                try:
-                    esptool.main(args)
-                    output = sys.stdout.getvalue() + sys.stderr.getvalue()
-                    print("Output:", output)  # Detailed print
-                    self.process_output(output)
+                process.stdout.close()
+                process.wait()
 
+                if process.returncode == 0:
                     self.progress.grid_remove()
                     self.progress_label.grid_remove()
                     self.status.config(text="Firmware flashed successfully!", bootstyle="success")
-                except Exception as e:
+                else:
                     self.progress.grid_remove()
                     self.progress_label.grid_remove()
                     self.status.config(text="Failed to flash firmware. Please try again.", bootstyle="danger")
-                    self.show_error(str(e))
-                    print("Esptool error:", e)
-                finally:
-                    # Restore stdout and stderr
-                    sys.stdout = stdout_backup
-                    sys.stderr = stderr_backup
+                    self.show_error("Failed to flash firmware. Please check the console output for more details.")
+
             except serial.SerialException as e:
                 self.progress.grid_remove()
                 self.progress_label.grid_remove()
@@ -143,8 +135,11 @@ class ESP32Flasher:
         flash_thread.start()
 
     def process_output(self, output):
+        print("Processing output...")  # Debugging statement
+        print(output)  # Debugging statement
         lines = output.splitlines()
         for line in lines:
+            print(f"Processing line: {line}")  # Debugging statement
             self.update_progress(line)
             self.root.update_idletasks()
 
