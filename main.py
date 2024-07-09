@@ -13,22 +13,6 @@ import pyperclip
 import os
 import esptool
 
-class StdoutRedirect:
-    def __init__(self, callback):
-        self.callback = callback
-        self.buffer = ""
-
-    def write(self, text):
-        self.buffer += text
-        while '\n' in self.buffer:
-            line, self.buffer = self.buffer.split('\n', 1)
-            self.callback(line)
-        return len(text)
-
-    def flush(self):
-        if self.buffer:
-            self.callback(self.buffer)
-            self.buffer = ""
 class ESP32Flasher:
     def __init__(self, root):
         self.root = root
@@ -225,6 +209,7 @@ class ESP32Flasher:
             if os.path.exists(boot_app0):
                 cmd.extend(['0xe000', boot_app0])
 
+            self.flashing_complete = False
             # Start a separate thread to update the progress bar
             progress_thread = threading.Thread(target=self.update_progress_gradually)
             progress_thread.start()
@@ -233,14 +218,15 @@ class ESP32Flasher:
             esptool.main(cmd)
             
              # Wait for the progress thread to complete
-            progress_thread.join()
-            self.progress_var.set(100)
-            self.progress.update()
+            # progress_thread.join()
+            self.flashing_complete = True
+            
             success_message = "Firmware flashed successfully!"
             self.status.config(text=success_message, bootstyle="success")
             self.get_mac_address(port)
             if not self.serial_monitor_visible:
                 self.show_serial_monitor()
+            
 
         except esptool.FatalError as e:
             self.handle_error("Fatal error", str(e))
@@ -248,11 +234,17 @@ class ESP32Flasher:
             self.handle_error("Unknown error", str(e))
     def update_progress_gradually(self):
         try:
-            for i in range(101):
-                self.progress_var.set(i)
-                self.progress_text.set(f"{i}%")
-                self.progress.update()
-                time.sleep(0.4)  # Adjust the delay as needed
+            while not self.flashing_complete:
+                for i in range(101):
+                    if self.flashing_complete:
+                        break
+                    self.progress_var.set(i)
+                    self.progress_text.set(f"{i}%")
+                    self.progress.update()
+                    time.sleep(0.4)  # Adjust the delay as needed
+            self.progress_var.set(100)
+            self.progress_text.set("100%")
+            self.progress.update()
         except Exception as e:
             print(f"Error updating progress bar: {str(e)}")
     def show_serial_monitor(self):
