@@ -327,17 +327,26 @@ class ESP32Flasher:
 
     def stop_serial_monitor(self):
         self.serial_monitor_active = False
+        # Close the serial port
+        if hasattr(self, 'serial_port') and self.serial_port is not None:
+            self.serial_port.close()
+            self.serial_port = None
+
 
     def read_serial(self):
         try:
-            with serial.Serial(self.port.get(), 115200, timeout=1) as ser:
-                while self.serial_monitor_active:
-                    if ser.in_waiting:
-                        line = ser.readline().decode('utf-8', errors='replace').strip()
-                        self.root.after(0, self.update_serial_monitor, line)
+            self.serial_port = serial.Serial(self.port.get(), 115200, timeout=1)
+            while self.serial_monitor_active:
+                if self.serial_port.in_waiting:
+                    line = self.serial_port.readline().decode('utf-8', errors='replace').strip()
+                    self.root.after(0, self.update_serial_monitor, line)
         except Exception as e:
             self.root.after(0, self.update_serial_monitor, f"Error: {str(e)}")
-
+        finally:
+            # Close the serial port when the monitor is stopped
+            if self.serial_port is not None:
+                self.serial_port.close()
+                self.serial_port = None
     def update_serial_monitor(self, line):
         # Temporarily enable editing
         self.serial_monitor.config(state='normal')
