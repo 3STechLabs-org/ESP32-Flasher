@@ -176,62 +176,112 @@ class ESP32Flasher:
             with serial.Serial(port) as ser:
                 ser.close()
             print("Serial port opened successfully:", port)
-
+        except serial.SerialException as e:
+            self.handle_error("Serial error", str(e))
             # Extract ZIP file
-            extract_path = os.path.join(os.path.dirname(zip_file), "extracted")
-            with zipfile.ZipFile(zip_file, 'r') as zip_ref:
-                zip_ref.extractall(extract_path)
-            print("Extracted files to:", extract_path)
+        extract_path = os.path.join(os.path.dirname(zip_file), "extracted")
+        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+        print("Extracted files to:", extract_path)
 
-            # Get the paths to the extracted files
-            bootloader = os.path.join(extract_path, "bootloader.bin")
-            firmware = os.path.join(extract_path, "firmware.bin")
-            partition = os.path.join(extract_path, "partitions.bin")
-            boot_app0 = os.path.join(extract_path, "boot_app0.bin")  # Optional
+        # Get the paths to the extracted files
+        bootloader = os.path.join(extract_path, "bootloader.bin")
+        firmware = os.path.join(extract_path, "firmware.bin")
+        partition = os.path.join(extract_path, "partitions.bin")
+        boot_app0 = os.path.join(extract_path, "boot_app0.bin")  # Optional
 
-            # Create an instance of the esptool.ESP32ROM class
-            # Build the esptool command
-            cmd = [
-                '--chip', 'esp32',
-                '--port', port,
-                '--baud', '921600',
-                '--before', 'default_reset',
-                '--after', 'hard_reset',
-                'write_flash',
-                '-z',
-                '--flash_mode', 'dio',
-                '--flash_freq', '40m',
-                '--flash_size', '4MB',
-                '0x1000', bootloader,
-                '0x8000', partition,
-                '0x10000', firmware
-            ]
-            if os.path.exists(boot_app0):
-                cmd.extend(['0xe000', boot_app0])
+        if self.get_os_name()=="nt":
+                # Build the esptool command
+            try:
+                cmd = [
+                    '--chip', 'esp32',
+                    '-p', port,
+                    '-b', '921600',
+                    '--before=default_reset',
+                    '--after=hard_reset',
+                    'write_flash',
+                    '-z',
+                    '--flash_mode', 'dio',
+                    '--flash_freq', '40m',
+                    '--flash_size', '4MB',
+                    '0x1000', bootloader,
+                    '0x8000', partition,
+                    '0x10000', firmware
+                ]
+                if os.path.exists(boot_app0):
+                    cmd.extend(['0xe000', boot_app0])
 
-            self.flashing_complete = False
-            # Start a separate thread to update the progress bar
-            progress_thread = threading.Thread(target=self.update_progress_gradually)
-            progress_thread.start()
-            # Run esptool using the library
-            print("Connecting...")
-            esptool.main(cmd)
-            
-             # Wait for the progress thread to complete
-            # progress_thread.join()
-            self.flashing_complete = True
-            
-            success_message = "Firmware flashed successfully!"
-            self.status.config(text=success_message, bootstyle="success")
-            self.get_mac_address(port)
-            if not self.serial_monitor_visible:
-                self.show_serial_monitor()
-            
+                # Run esptool in a separate process
+                esptool_process = subprocess.Popen(['esptool'] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
-        except esptool.FatalError as e:
-            self.handle_error("Fatal error", str(e))
-        except Exception as e:
-            self.handle_error("Unknown error", str(e))
+                # Read and process output line by line
+                while True:
+                    output = esptool_process.stdout.readline()
+                    if not output:
+                        break
+                    print(output.strip())  # Print to console
+                    self.process_output(output.strip())
+
+                # Wait for the process to finish and get the return code
+                esptool_process.communicate()
+                return_code = esptool_process.returncode
+
+                if return_code == 0:
+                    self.update_progress(100)  # Complete progress
+                    self.status.config(text="Firmware flashed successfully!", bootstyle="success")
+                else:
+                    self.handle_error("Error", f"esptool returned non-zero exit code: {return_code}")
+
+            except serial.SerialException as e:
+                self.handle_error("Serial error", str(e))
+            except PermissionError as e:
+                self.handle_error("Permission error", f"{str(e)}.\nHint: Check if the port is used by another task.")
+            except Exception as e:
+                self.handle_error("Unknown error", str(e))
+        if self.get_os_name()!="nt":
+            print("OS: ",self.get_os_name())
+            try:
+                # Build the esptool command
+                cmd = [
+                    '--chip', 'esp32',
+                    '--port', port,
+                    '--baud', '921600',
+                    '--before', 'default_reset',
+                    '--after', 'hard_reset',
+                    'write_flash',
+                    '-z',
+                    '--flash_mode', 'dio',
+                    '--flash_freq', '40m',
+                    '--flash_size', '4MB',
+                    '0x1000', bootloader,
+                    '0x8000', partition,
+                    '0x10000', firmware
+                ]
+                if os.path.exists(boot_app0):
+                    cmd.extend(['0xe000', boot_app0])
+
+                self.flashing_complete = False
+                # Start a separate thread to update the progress bar
+                progress_thread = threading.Thread(target=self.update_progress_gradually)
+                progress_thread.start()
+                # Run esptool using the library
+                print("Connecting...")
+                esptool.main(cmd)
+                
+                # Wait for the progress thread to complete
+                # progress_thread.join()
+                self.flashing_complete = True
+                
+                success_message = "Firmware flashed successfully!"
+                self.status.config(text=success_message, bootstyle="success")
+                self.get_mac_address(port)
+                if not self.serial_monitor_visible:
+                    self.show_serial_monitor()
+
+            except esptool.FatalError as e:
+                self.handle_error("Fatal error", str(e))
+            except Exception as e:
+                self.handle_error("Unknown error", str(e))
     def update_progress_gradually(self):
         try:
             while not self.flashing_complete:
@@ -356,18 +406,25 @@ class ESP32Flasher:
     
     def process_output(self, output):
         try:
-            if "Connecting" in output:
-                self.update_progress(0)  # Reset progress when connecting
-            elif "Writing at" in output:
-                address = int(re.findall(r"0x[0-9a-fA-F]+", output)[0], 16)
-                self.update_progress(address)
-            elif "Compressed" in output and "bytes to" in output:
+            if "Compressed" in output and "bytes to" in output:
                 size_start = output.find('Compressed') + 11
                 size_end = output.find('bytes')
                 if size_start > 0 and size_end > size_start:
-                    self.total_size = int(output[size_start:size_end].strip().replace(',', ''))
-            elif "Leaving..." in output:
-                self.update_progress(self.total_size)  # Set progress to 100% when finished
+                    self.total_size += int(output[size_start:size_end].strip().replace(',', ''))
+            elif "Writing at" in output:
+                addr_start = output.find('0x')
+                addr_end = output.find('...', addr_start)
+                if addr_start > 0 and addr_end > addr_start:
+                    current_addr = int(output[addr_start:addr_end], 16)
+                    if current_addr in [0x1000, 0x8000]:
+                        # Skip the first 100% progress update for specific addresses
+                        if self.current_progress == 0:
+                            self.current_progress = 1
+                            self.total_size = current_addr
+                    else:
+                        self.update_progress(current_addr)
+                        self.consecutive_100 = 0  # Reset consecutive 100% count
+
         except ValueError as e:
             print(f"Unable to parse progress output: {output}")
             print(f"Error: {str(e)}")
@@ -376,9 +433,11 @@ class ESP32Flasher:
         try:
             if self.total_size > 0:
                 progress_percent = min(100, int((current_addr / self.total_size) * 100))
-                self.progress_var.set(progress_percent)
-                self.progress_text.set(f"{progress_percent}%")
-                self.progress.update()
+                if progress_percent > self.current_progress:
+                    self.current_progress = progress_percent
+                    self.progress_var.set(self.current_progress)
+                    self.progress_text.set(f"{self.current_progress}%")
+                    self.progress.update()
         except Exception as e:
             print(f"Error updating progress bar: {str(e)}")
     def handle_error(self, error_type, error_message):
