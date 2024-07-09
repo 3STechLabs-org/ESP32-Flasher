@@ -1,0 +1,15 @@
+[package]
+name = "flasher_tool"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.86"
+eframe = "0.28.1"
+egui = "0.28.1"
+espflash = "3.1.0"
+rfd = "0.14.1"
+serialport = "4.4.0"
+zip = "2.1.3"
