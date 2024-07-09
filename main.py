@@ -17,7 +17,7 @@ class ESP32Flasher:
     def __init__(self, root):
         self.root = root
         self.root.title("ESP32 Flasher")
-        self.root.geometry("900x400")
+        self.root.geometry("900x650")  # Adjust window size
         self.root.resizable(True, True)  # Enable window resizing
 
         self.zip_file = tb.StringVar()
@@ -229,6 +229,7 @@ class ESP32Flasher:
                 if return_code == 0:
                     self.update_progress(100)  # Complete progress
                     self.status.config(text="Firmware flashed successfully!", bootstyle="success")
+                    self.get_mac_address(port,self.get_os_name())
                 else:
                     self.handle_error("Error", f"esptool returned non-zero exit code: {return_code}")
 
@@ -306,7 +307,7 @@ class ESP32Flasher:
     def hide_serial_monitor(self):
         self.serial_monitor.grid_remove()
         self.serial_monitor_visible = False
-        self.root.geometry("900x400")  # Restore original window size
+        self.root.geometry("900x650")  # Adjust window size
         self.stop_serial_monitor()
 
     def show_serial_monitor_controls(self):
@@ -376,33 +377,60 @@ class ESP32Flasher:
             messagebox.showwarning(
                 "No MAC Address", "No MAC address available to copy.")
 
-    def get_mac_address(self, port):
-        try:
-            # Build the esptool command for reading the MAC address
-            cmd = [
-                '--chip', 'esp32',
-                '--port', port,
-                '--baud', '921600',
-                'read_mac'
-            ]
+    def get_mac_address(self, port, os="POSIX"):
+        if(os=="nt"):
+            try:
+                cmd = [
+                    'python3',
+                    '-m',
+                    'esptool',
+                    '--chip', 'esp32',
+                    '-p', port,
+                    '-b', '921600',
+                    'read_mac'
+                ]
+                if self.get_os_name()=='nt':
+                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                output, _ = process.communicate()
+                
+                mac_match = re.search(r'MAC:\s+([0-9A-Fa-f:]{17})', output)
+                if mac_match:
+                    self.mac_address = mac_match.group(1)
+                    self.mac_label.config(text=f"Device MAC Address: {self.mac_address.upper()}")
+                    self.mac_frame.grid()  # Show the MAC address frame
+                else:
+                    print("MAC address not found in the output")
+            except Exception as e:
+                print(f"Error getting MAC address: {str(e)}")
+        else:
+            try:
+                # Build the esptool command for reading the MAC address
+                cmd = [
+                    '--chip', 'esp32',
+                    '--port', port,
+                    '--baud', '921600',
+                    'read_mac'
+                ]
 
-            # Run esptool using the library and capture the output
-            output = io.StringIO()
-            sys.stdout = output
-            esptool.main(cmd)
-            sys.stdout = sys.__stdout__
+                # Run esptool using the library and capture the output
+                output = io.StringIO()
+                sys.stdout = output
+                esptool.main(cmd)
+                sys.stdout = sys.__stdout__
 
-            # Process the output to extract the MAC address
-            output_str = output.getvalue()
-            mac_match = re.search(r'MAC:\s+([0-9A-Fa-f:]{17})', output_str)
-            if mac_match:
-                self.mac_address = mac_match.group(1)
-                self.mac_label.config(text=f"Device MAC Address: {self.mac_address}")
-                self.mac_frame.grid()  # Show the MAC address frame
-            else:
-                print("MAC address not found")
-        except Exception as e:
-            print(f"Error getting MAC address: {str(e)}")
+                # Process the output to extract the MAC address
+                output_str = output.getvalue()
+                mac_match = re.search(r'MAC:\s+([0-9A-Fa-f:]{17})', output_str)
+                if mac_match:
+                    self.mac_address = mac_match.group(1)
+                    self.mac_label.config(text=f"Device MAC Address: {self.mac_address}")
+                    self.mac_frame.grid()  # Show the MAC address frame
+                else:
+                    print("MAC address not found")
+            except Exception as e:
+                print(f"Error getting MAC address: {str(e)}")
+                
+            
     
     def process_output(self, output):
         try:
