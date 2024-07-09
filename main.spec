@@ -24,7 +24,7 @@ pil_datas = collect_data_files('PIL')
 #    (os.path.join('esp_env', 'Lib', 'site-packages', 'esptool', 'targets', 'stub_flasher'), os.path.join('esptool', 'targets', 'stub_flasher')),
 #]
 datas = [
-        (os.path.join('venv', 'lib', 'python3.12', 'site-packages', 'esptool', 'targets', 'stub_flasher'), os.path.join('libs', 'esptool', 'stub_flasher'), os.path.join('esptool', 'targets', 'stub_flasher')),
+        (os.path.join('libs', 'esptool', 'stub_flasher'), os.path.join('esptool', 'targets', 'stub_flasher')),
 ]
 datas += pil_datas
 
