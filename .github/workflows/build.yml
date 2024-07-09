@@ -1,10 +1,8 @@
 name: Build Executables
-
 on:
   push:
     branches:
       - main
-
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -12,54 +10,50 @@ jobs:
       fail-fast: false
       matrix:
         os: ['windows-latest', 'ubuntu-latest', 'macos-latest']
-
     env:
-      MAIN_PY_FILE: 'main.spec'  # Define the path to your main.py file here
-
+      MAIN_SPEC_FILE: 'main.spec' # Define the path to your main.spec file here
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.12.4
-
-    - name: Install Python dependencies
-      run: |
-        pip install -r requirements.txt
-      working-directory: ./
-
-    - name: Install PyInstaller
-      run: |
-        pip install pyinstaller
-      working-directory: ./
-
-    - name: Build executable
-      run: |
-        pyinstaller ${{ env.MAIN_PY_FILE }}
-      working-directory: ./
-
-    - name: Create Artifact (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: windows-executables
-        path: dist/
-
-    - name: Create Artifact (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: linux-executables
-        path: dist/
-
-    - name: Create Artifact (macOS)
-      if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: macos-executables
-        path: dist/
-
-    - name: List files in dist folder
-      run: ls -R ./dist/
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12.4
+      - name: Create virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+        shell: bash
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+        working-directory: ./
+      - name: Install PyInstaller
+        run: |
+          pip install pyinstaller
+        working-directory: ./
+      - name: Build executable
+        run: |
+          source venv/bin/activate
+          pyinstaller ${{ env.MAIN_SPEC_FILE }}
+        working-directory: ./
+      - name: Create Artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-executables
+          path: dist/
+      - name: Create Artifact (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-executables
+          path: dist/
+      - name: Create Artifact (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-executables
+          path: dist/
+      - name: List files in dist folder
+        run: ls -R ./dist/

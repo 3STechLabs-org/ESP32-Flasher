@@ -186,7 +186,7 @@ class ESP32Flasher:
 
             # Run esptool in a separate process
             if self.get_os_name()=="nt":
-                esptool_process = subprocess.Popen(['python3','-m','esptool'] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                esptool_process = subprocess.Popen(['esptool'] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
             else:
                 esptool_process = subprocess.Popen(['python3','-m','esptool'] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             
@@ -297,8 +297,15 @@ class ESP32Flasher:
                 '-b', '921600',
                 'read_mac'
             ]
+            cmd_nt = [
+                'esptool',
+                '--chip', 'esp32',
+                '-p', port,
+                '-b', '921600',
+                'read_mac'
+            ]
             if self.get_os_name()=='nt':
-                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                process = subprocess.Popen(cmd_nt, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
             else:
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             output, _ = process.communicate()

@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
-
 import os
 import sys
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 block_cipher = None
 
@@ -10,23 +10,35 @@ is_windows = sys.platform.startswith('win')
 is_macos = sys.platform == 'darwin'
 is_linux = sys.platform.startswith('linux')
 
+pil_path = os.path.join('esp_env', 'Lib', 'site-packages', 'PIL')
+pil_data = [
+    (os.path.join(pil_path, 'palettes'), os.path.join('PIL', 'palettes')),
+    (os.path.join(pil_path, 'fonts'), os.path.join('PIL', 'fonts')),
+]
+
+# Collect PIL submodules and data files
+pil_hidden_imports = collect_submodules('PIL')
+pil_datas = collect_data_files('PIL')
+
+#datas = [
+#    (os.path.join('esp_env', 'Lib', 'site-packages', 'esptool', 'targets', 'stub_flasher'), os.path.join('esptool', 'targets', 'stub_flasher')),
+#]
+datas = [
+    (os.path.join('venv', 'lib', 'python3.12', 'site-packages', 'esptool', 'targets', 'stub_flasher'), os.path.join('esptool', 'targets', 'stub_flasher')),
+]
+datas += pil_datas
+
+#pathex = [os.path.join('esp_env', 'Lib', 'site-packages')]
+pathex = [os.path.join('venv', 'lib','python3.12', 'site-packages')]
 # Platform-specific paths and data files
 if is_windows:
-    datas = [
-        ('esp_env\\Lib\\site-packages\\esptool\\targets\\stub_flasher', 'esptool/targets/stub_flasher'),
-        ('drivers\\CP210x_VCP_Windows\\CP210xVCPInstaller_x64.exe', '.'),
+    datas += [
+        (os.path.join('drivers', 'CP210x_VCP_Windows', 'CP210xVCPInstaller_x64.exe'), '.'),
     ]
-    pathex = ['esp_env\\Lib\\site-packages']
 elif is_macos:
-    datas = [
-        ('esp_env/Lib/site-packages/esptool/targets/stub_flasher', 'esptool/targets/stub_flasher'),
-    ]
-    pathex = ['esp_env/Lib/site-packages']
+    print("MAC")
 elif is_linux:
-    datas = [
-        ('esp_env/Lib/site-packages/esptool/targets/stub_flasher', 'esptool/targets/stub_flasher'),
-    ]
-    pathex = ['esp_env/Lib/site-packages']
+    pass
 else:
     datas = []
     pathex = []
@@ -46,7 +58,17 @@ a = Analysis(
         'tkinter',
         'tkinter.filedialog',
         'tkinter.messagebox',
-    ],
+        'PIL',
+        'PIL_imaging',
+        'PIL.ExifTags',
+        'PIL._tkinter_finder',
+        'PIL._imagingtk',
+        'PIL._imaging',
+        'PIL._imagingft',
+        'PIL._imagingmath',
+        'PIL._imagingmorph',
+        'PIL._webp',
+    ] + pil_hidden_imports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
