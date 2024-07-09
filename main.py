@@ -8,6 +8,7 @@ import threading
 import io
 import time
 import zipfile
+import re
 import os
 
 class ESP32Flasher:
@@ -127,6 +128,7 @@ class ESP32Flasher:
             # Run esptool in a separate process
             esptool_process = subprocess.Popen(['esptool'] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
+            mac_address = None
             # Read and process output line by line
             while True:
                 output = esptool_process.stdout.readline()
@@ -134,6 +136,8 @@ class ESP32Flasher:
                     break
                 print(output.strip())  # Print to console
                 self.process_output(output.strip())
+                if "MAC:" in output:
+                    mac_address = output.split("MAC:")[1].strip()
 
             # Wait for the process to finish and get the return code
             esptool_process.communicate()
@@ -141,7 +145,15 @@ class ESP32Flasher:
 
             if return_code == 0:
                 self.update_progress(100)  # Complete progress
-                self.status.config(text="Firmware flashed successfully!", bootstyle="success")
+                success_message = "Firmware flashed successfully!"
+                if mac_address:
+                    success_message += f"\nESP32 MAC Address: {mac_address}"
+                self.status.config(text=success_message, bootstyle="success")
+                
+                # Get and display the MAC address if not captured during flashing
+                if not mac_address:
+                    self.get_mac_address(port)
+                # self.status.config(text="Firmware flashed successfully!", bootstyle="success")
             else:
                 self.handle_error("Error", f"esptool returned non-zero exit code: {return_code}")
 
@@ -151,7 +163,28 @@ class ESP32Flasher:
             self.handle_error("Permission error", f"{str(e)}.\nHint: Check if the port is used by another task.")
         except Exception as e:
             self.handle_error("Unknown error", str(e))
-
+    def get_mac_address(self, port):
+        try:
+            cmd = [
+                'esptool',
+                '--chip', 'esp32',
+                '-p', port,
+                '-b', '921600',
+                'read_mac'
+            ]
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            output, _ = process.communicate()
+            
+            mac_match = re.search(r'MAC:\s+([0-9A-Fa-f:]{17})', output)
+            if mac_match:
+                mac_address = mac_match.group(1)
+                current_text = self.status.cget("text")
+                self.status.config(text=f"{current_text}\nESP32 MAC Address: {mac_address}")
+            else:
+                print("MAC address not found in the output")
+        except Exception as e:
+            print(f"Error getting MAC address: {str(e)}")
+            
     def process_output(self, output):
         try:
             if "Compressed" in output and "bytes to" in output:
