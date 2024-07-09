@@ -127,10 +127,10 @@ class ESP32Flasher:
     def toggle_serial_monitor(self):
         if self.serial_monitor_visible:
             self.hide_serial_monitor()
-            self.toggle_monitor_button.config(text="Show Serial Monitor")
+            
         else:
             self.show_serial_monitor()
-            self.toggle_monitor_button.config(text="Hide Serial Monitor")
+            
 
     def detect_ports(self):
         ports = serial.tools.list_ports.comports()
@@ -230,6 +230,8 @@ class ESP32Flasher:
                     self.update_progress(100)  # Complete progress
                     self.status.config(text="Firmware flashed successfully!", bootstyle="success")
                     self.get_mac_address(port,self.get_os_name())
+                    if not self.serial_monitor_visible:
+                        self.show_serial_monitor()
                 else:
                     self.handle_error("Error", f"esptool returned non-zero exit code: {return_code}")
 
@@ -301,14 +303,16 @@ class ESP32Flasher:
     def show_serial_monitor(self):
         self.serial_monitor.grid()
         self.serial_monitor_visible = True
-        self.root.geometry("900x650")  # Adjust window size
+        # self.root.geometry("900x650")  # Adjust window size
         self.start_serial_monitor()
+        self.toggle_monitor_button.config(text="Hide Serial Monitor")
 
     def hide_serial_monitor(self):
         self.serial_monitor.grid_remove()
         self.serial_monitor_visible = False
-        self.root.geometry("900x650")  # Adjust window size
+        # self.root.geometry("900x650")  # Adjust window size
         self.stop_serial_monitor()
+        self.toggle_monitor_button.config(text="Show Serial Monitor")
 
     def show_serial_monitor_controls(self):
         self.serial_monitor.grid()
