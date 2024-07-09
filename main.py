@@ -345,7 +345,10 @@ class ESP32Flasher:
         finally:
             # Close the serial port when the monitor is stopped
             if self.serial_port is not None:
-                self.serial_port.close()
+                try:
+                    self.serial_port.close()
+                except:
+                    print("Error closing serial port")
                 self.serial_port = None
     def update_serial_monitor(self, line):
         # Temporarily enable editing
