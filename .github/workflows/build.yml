@@ -22,8 +22,14 @@ jobs:
       - name: Create virtual environment
         run: |
           python -m venv venv
+      - name: Activate virtual environment (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          venv\Scripts\activate.bat
+      - name: Activate virtual environment (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
           source venv/bin/activate
-        shell: bash
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
@@ -34,7 +40,6 @@ jobs:
         working-directory: ./
       - name: Build executable
         run: |
-          source venv/bin/activate
           pyinstaller ${{ env.MAIN_SPEC_FILE }}
         working-directory: ./
       - name: Create Artifact (Windows)
