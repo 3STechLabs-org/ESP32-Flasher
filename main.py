@@ -220,7 +220,7 @@ class ESP32Flasher:
                     cmd.extend(['0xe000', boot_app0])
 
                 # Run esptool in a separate process
-                esptool_process = subprocess.Popen(['esptool'] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                esptool_process = subprocess.Popen(['esptool.exe'] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
                 # Read and process output line by line
                 while True:
@@ -405,9 +405,7 @@ class ESP32Flasher:
         if(os=="nt"):
             try:
                 cmd = [
-                    'python3',
-                    '-m',
-                    'esptool',
+                    'esptool.exe',
                     '--chip', 'esp32',
                     '-p', port,
                     '-b', '921600',

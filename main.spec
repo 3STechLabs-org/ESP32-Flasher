@@ -25,6 +25,7 @@ pil_datas = collect_data_files('PIL')
 #]
 datas = [
         (os.path.join('libs', 'esptool', 'stub_flasher'), os.path.join('esptool', 'targets', 'stub_flasher')),
+        (os.path.join('libs', 'esptool-win64', 'esptool.exe'), '.'),
 ]
 datas += pil_datas
 
