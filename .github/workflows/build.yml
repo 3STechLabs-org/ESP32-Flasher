@@ -1,8 +1,10 @@
 name: Build Executables
+
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -11,7 +13,7 @@ jobs:
       matrix:
         os: ['windows-latest', 'ubuntu-latest', 'macos-latest']
     env:
-      MAIN_SPEC_FILE: 'main.spec' # Define the path to your main.spec file here
+      MAIN_SPEC_FILE: 'main.spec'  # Define the path to your main.spec file here
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -46,23 +48,15 @@ jobs:
         run: |
           pyinstaller ${{ env.MAIN_SPEC_FILE }}
         working-directory: ./
-      - name: Create Artifact (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Upload Release Assets
         uses: actions/upload-artifact@v3
         with:
-          name: windows-executables
+          name: release-assets-${{ matrix.os }}
           path: dist/
-      - name: Create Artifact (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          name: linux-executables
-          path: dist/
-      - name: Create Artifact (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          name: macos-executables
-          path: dist/
-      - name: List files in dist folder
-        run: ls -R ./dist/
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag_name="${GITHUB_REF##*/}"
+          hub release create -a ./dist/* -m "$tag_name" "$tag_name"
