@@ -35,6 +35,8 @@ class ESP32Flasher:
 
         self.create_widgets()
         self.detect_ports()
+        self.esptool_path = self.resource_path('esptool.exe')
+
 
         self.total_size = 0
         self.current_progress = 0
@@ -50,6 +52,10 @@ class ESP32Flasher:
 
     def get_os_name(self):
         return os.name
+    def resource_path(self, relative_path):
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.abspath("."), relative_path)
 
     def create_widgets(self):
         # Zip file selection
@@ -220,7 +226,7 @@ class ESP32Flasher:
                     cmd.extend(['0xe000', boot_app0])
 
                 # Run esptool in a separate process
-                esptool_process = subprocess.Popen(['esptool.exe'] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                esptool_process = subprocess.Popen([self.esptool_path] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
                 # Read and process output line by line
                 while True:
@@ -405,7 +411,7 @@ class ESP32Flasher:
         if(os=="nt"):
             try:
                 cmd = [
-                    'esptool.exe',
+                    self.esptool_path,
                     '--chip', 'esp32',
                     '-p', port,
                     '-b', '921600',

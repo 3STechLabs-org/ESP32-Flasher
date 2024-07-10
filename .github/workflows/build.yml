@@ -56,10 +56,19 @@ jobs:
           } else {
             Write-Host "dist\ESPFlasher directory not found. Skipping ZIP creation."
           }
-      - name: Create ZIP archive (Linux/macOS)
-        if: matrix.os != 'windows-latest'
+      - name: Create ZIP archive (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           if [ -d "dist/ESPFlasher" ]; then
+            zip -r ESPFlasher-${{ matrix.os }}.zip dist/ESPFlasher
+          else
+            echo "dist/ESPFlasher directory not found. Skipping ZIP creation."
+          fi
+      - name: Create ZIP archive (MacOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          if [ -d "dist/ESPFlasher" ]; then
+            cp dist/ESPFlasher.app dist/ESPFlasher
             zip -r ESPFlasher-${{ matrix.os }}.zip dist/ESPFlasher
           else
             echo "dist/ESPFlasher directory not found. Skipping ZIP creation."

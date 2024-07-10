@@ -111,3 +111,7 @@ coll = COLLECT(
     upx_exclude=[],
     name='ESPFlasher',
 )
+app = BUNDLE(coll,
+             name='ESPFlasher.app',
+             icon=(os.path.join('Resources', 'icon.icns')),
+             bundle_identifier=None)
