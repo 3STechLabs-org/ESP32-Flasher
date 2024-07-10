@@ -50,18 +50,12 @@ jobs:
         working-directory: ./
       - name: Create ZIP archive
         run: |
-          if [ -d "dist/ESP32-Flasher" ]; then
-            zip -r ESP32-Flasher-${{ matrix.os }}.zip dist/ESP32-Flasher
-          else
-            echo "dist/ESP32-Flasher directory not found. Skipping ZIP creation."
-            ls
-            ls dist
-          fi
+          zip -r ESPFlasher-${{ matrix.os }}.zip dist/ESPFlasher
       - name: Upload Release Assets
         uses: actions/upload-artifact@v3
         with:
-          name: ESP32-Flasher-${{ matrix.os }}
-          path: ESP32-Flasher-${{ matrix.os }}.zip
+          name: ESPFlasher-${{ matrix.os }}
+          path: ESPFlasher-${{ matrix.os }}.zip
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -75,8 +69,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            assets/ESP32-Flasher-windows-latest/ESP32-Flasher-windows-latest.zip
-            assets/ESP32-Flasher-ubuntu-latest/ESP32-Flasher-ubuntu-latest.zip
-            assets/ESP32-Flasher-macos-latest/ESP32-Flasher-macos-latest.zip
+            assets/ESPFlasher-windows-latest/ESPFlasher-windows-latest.zip
+            assets/ESPFlasher-ubuntu-latest/ESPFlasher-ubuntu-latest.zip
+            assets/ESPFlasher-macos-latest/ESPFlasher-macos-latest.zip
           body: This is the release for ${{ github.ref }}
           name: Release ${{ github.ref }}
