@@ -50,7 +50,13 @@ jobs:
         working-directory: ./
       - name: Create ZIP archive
         run: |
-          zip -r ESP32-Flasher-${{ matrix.os }}.zip dist/ESP32-Flasher
+          if [ -d "dist/ESP32-Flasher" ]; then
+            zip -r ESP32-Flasher-${{ matrix.os }}.zip dist/ESP32-Flasher
+          else
+            echo "dist/ESP32-Flasher directory not found. Skipping ZIP creation."
+            ls
+            ls dist
+          fi
       - name: Upload Release Assets
         uses: actions/upload-artifact@v3
         with:
