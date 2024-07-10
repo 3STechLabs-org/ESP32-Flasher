@@ -17,7 +17,15 @@ class ESP32Flasher:
     def __init__(self, root):
         self.root = root
         self.root.title("ESP32 Flasher")
-        self.root.geometry("900x650")  # Adjust window size
+        # self.root.geometry("900x650")  # Adjust window size
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+
+        # Set the initial window size based on the screen dimensions
+        window_width = int(screen_width * 0.6)  # 80% of the screen width
+        window_height = int(screen_height * 0.8)  # 80% of the screen height
+        window_geometry = f"{window_width}x{window_height}"
+        self.root.geometry(window_geometry)
         self.root.resizable(True, True)  # Enable window resizing
 
         self.zip_file = tb.StringVar()
