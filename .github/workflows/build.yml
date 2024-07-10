@@ -68,7 +68,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           if [ -d "dist/ESPFlasher" ]; then
-            cp dist/ESPFlasher.app dist/ESPFlasher
+            cp -r dist/ESPFlasher.app dist/ESPFlasher
             zip -r ESPFlasher-${{ matrix.os }}.zip dist/ESPFlasher
           else
             echo "dist/ESPFlasher directory not found. Skipping ZIP creation."
