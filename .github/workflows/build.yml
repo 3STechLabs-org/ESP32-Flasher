@@ -48,9 +48,22 @@ jobs:
         run: |
           pyinstaller ${{ env.MAIN_SPEC_FILE }}
         working-directory: ./
-      - name: Create ZIP archive
+      - name: Create ZIP archive (Windows)
+        if: matrix.os == 'windows-latest'
         run: |
-          zip -r ESPFlasher-${{ matrix.os }}.zip dist/ESPFlasher
+          if (Test-Path -Path "dist\ESPFlasher") {
+            Compress-Archive -Path "dist\ESPFlasher" -DestinationPath "ESPFlasher-windows-latest.zip"
+          } else {
+            Write-Host "dist\ESPFlasher directory not found. Skipping ZIP creation."
+          }
+      - name: Create ZIP archive (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          if [ -d "dist/ESPFlasher" ]; then
+            zip -r ESPFlasher-${{ matrix.os }}.zip dist/ESPFlasher
+          else
+            echo "dist/ESPFlasher directory not found. Skipping ZIP creation."
+          fi
       - name: Upload Release Assets
         uses: actions/upload-artifact@v3
         with:
