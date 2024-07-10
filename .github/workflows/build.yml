@@ -67,6 +67,9 @@ jobs:
           assets=()
           for asset in ./dist/*; do
             assets+=("-a" "$asset")
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@$asset" \
+              "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.id }}/assets?name=$(basename $asset)"
           done
-          tag_name="${GITHUB_REF##*/}"
-          hub release edit "${assets[@]}" -m "" "$tag_name"
