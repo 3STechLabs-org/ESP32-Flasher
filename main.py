@@ -187,6 +187,7 @@ class ESP32Flasher:
 
     def flash(self, zip_file, port):
         try:
+            self.hide_serial_monitor()
             with serial.Serial(port) as ser:
                 ser.close()
             print("Serial port opened successfully:", port)
